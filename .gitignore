@@ -1,0 +1,18 @@
+.vs
+.vscode
+
+# Output
+[Bb]in
+[Oo]bj
+[Ll]ogs
+[Bb]uild
+
+# Visual Studio
+*.sln
+*.slnx
+*.user
+*.vcxproj
+*.filters
+
+# shader compile output
+*cso
