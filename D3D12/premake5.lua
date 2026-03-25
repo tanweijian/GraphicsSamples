@@ -9,8 +9,8 @@ function RuntimeDependency(sourceRelPath, destSubdir)
 end
 
 function AgilitySDK()
-    includedirs (_MAIN_SCRIPT_DIR.."/External/AgilitySDK/Include")
-    includedirs (_MAIN_SCRIPT_DIR.."/External/AgilitySDK/Include/d3dx12")
+    includedirs (_MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Include")
+    includedirs (_MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Include/d3dx12")
     files { _MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Source/**.cpp" }
     RuntimeDependency("External/AgilitySDK/Binaries/D3D12Core.dll", "D3D12")
     filter "configurations:Debug"
@@ -21,6 +21,15 @@ function AgilitySDK()
         RuntimeDependency("External/AgilitySDK/Binaries/d3d12SDKLayers.dll", "D3D12")
     filter {}
     defines { "USING_D3D12_AGILITY_SDK" }
+end
+
+function Imgui()
+    includedirs (_MAIN_SCRIPT_DIR .. "/ThirdParty/imgui")
+    files
+    {
+        _MAIN_SCRIPT_DIR .. "/ThirdParty/imgui/*.h", _MAIN_SCRIPT_DIR ..  "/ThirdParty/imgui/*.cpp", 
+        _MAIN_SCRIPT_DIR ..  "/ThirdParty/imgui/backends/imgui_impl_dx12.*", _MAIN_SCRIPT_DIR ..  "/ThirdParty/imgui/backends/imgui_impl_win32.*"
+    }
 end
 
 for _, dir in ipairs(os.matchdirs("Samples/*")) do
