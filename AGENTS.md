@@ -8,12 +8,12 @@ C++ graphics samples for D3D12 and Vulkan on Windows x64. Uses Premake5 to gener
 
 ```
 GraphicsSamples/
-  premake5.lua              # Root workspace definition
+  premake5.lua              # Root workspace definition (2 workspaces: D3D12, Vulkan)
   GenerateProjectFiles.bat  # Runs premake5 vs2026
-  D3D12/                    # D3D12 samples + Shared utilities
-  Vulkan/                   # Vulkan samples
-  External/                 # SDKs (AgilitySDK)
-  ThirdParty/               # Submodules (spdlog, imgui)
+  D3D12/                    # D3D12 samples + Common utilities
+  Vulkan/                   # Vulkan samples (stubbed, WIP)
+  External/                 # SDKs (AgilitySDK, WinPixEventRuntime, VulkanSDK)
+  ThirdParty/               # Git submodules (spdlog, imgui)
 ```
 
 Each sample: `{API}/Samples/{SampleName}/Main.cpp` + `premake5.lua`.
@@ -23,10 +23,13 @@ Each sample: `{API}/Samples/{SampleName}/Main.cpp` + `premake5.lua`.
 ### Generate & Build
 
 ```batch
-GenerateProjectFiles.bat   # Generate .vcxproj alongside source
+GenerateProjectFiles.bat   # Regenerate .vcxproj files alongside source
 
 :: Single project (requires /p:Platform=x64)
 msbuild D3D12\Samples\HelloTriangle\HelloTriangle.vcxproj /p:Configuration=Development /p:Platform=x64
+
+:: Full solution
+msbuild GraphicsSamplesD3D12.slnx /p:Configuration=Development /p:Platform=x64
 ```
 
 ### Configurations
@@ -48,9 +51,17 @@ No unit tests. Verify by:
 2. Run visually — check rendering output
 3. Enable D3D12 debug layer (Debug/Development) to catch API misuse
 
-## Shared Utilities
+## Lint & Typecheck
 
-`D3D12/Shared/Window.h` / `Window.cpp` — Win32 window wrapper:
+No automated tools. Verify by building in Development config:
+```batch
+msbuild D3D12\Samples\HelloTriangle\HelloTriangle.vcxproj /p:Configuration=Development /p:Platform=x64
+```
+Target MSVC; address warnings, don't suppress.
+
+## Common Utilities
+
+`D3D12/Common/Window.h` / `Window.cpp` — Win32 window wrapper:
 - Per-monitor DPI aware v2
 - External message loop via `PollMessage()` (returns `false` on `WM_QUIT`)
 - `Desc` struct for configuration (title, size, resizable)
@@ -65,7 +76,7 @@ while (window.PollMessage()) { /* render */ }
 Include in sample's `premake5.lua`:
 ```lua
 includedirs (_MAIN_SCRIPT_DIR .. "/D3D12")
-files { _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.cpp" }
+files { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.cpp" }
 ```
 
 ## Adding New Samples
@@ -73,7 +84,7 @@ files { _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Sh
 1. Create `{API}/Samples/{SampleName}/`
 2. Add `Main.cpp` with `wWinMain` entry + GPU vendor exports (D3D12 only)
 3. Add `premake5.lua` (copy existing, adjust `targetname`)
-4. Call helper functions: `AgilitySDK()`, `Imgui()`, include Shared files
+4. Call helper functions: `AgilitySDK()`, `Imgui()`, include Common files
 5. Run `GenerateProjectFiles.bat`
 
 ### premake5.lua Template (D3D12)
@@ -88,12 +99,12 @@ project "SampleName"
     cppdialect "C++20"
     includedirs (_MAIN_SCRIPT_DIR .. "/D3D12")
     files { "**.h", "**.hpp", "**.inl", "**.cpp", "**.cc" }
-    files { _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.cpp" }
+    files { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.cpp" }
     Imgui()
     AgilitySDK()
     links { "d3d12", "dxgi", "dxguid" }
     vpaths {
-        ["Shared/*"] = { _MAIN_SCRIPT_DIR .. "/D3D12/Shared/**.*" },
+        ["Common/*"] = { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.*" },
         ["External/*"] = { _MAIN_SCRIPT_DIR .. "/External/**.*" },
         ["ThirdParty/*"] = { _MAIN_SCRIPT_DIR .. "/ThirdParty/**.*" }
     }
@@ -109,6 +120,7 @@ project "SampleName"
 
 - `AgilitySDK()` — includes AgilitySDK headers/source, copies DLLs post-build, defines `USING_D3D12_AGILITY_SDK`
 - `Imgui()` — includes imgui + DX12/Win32 backends
+- `WinPixEventRuntime()` — includes PIX headers/libs, copies DLL post-build, defines `USE_PIX` (Debug/Development only)
 - `RuntimeDependency(src, dest)` — copies file to `$(OutDir)/dest` post-build
 
 ## Dependencies
@@ -117,6 +129,7 @@ project "SampleName"
 - **ThirdParty/spdlog**: Logging
 - **ThirdParty/imgui**: Immediate-mode GUI
 - **External/AgilitySDK**: D3D12 headers + binaries
+- **External/WinPixEventRuntime**: GPU profiling (Debug/Development)
 
 ## Code Style
 
@@ -124,6 +137,7 @@ project "SampleName"
 
 - C++20 (`cppdialect "C++20"`), C17 for C files (`cdialect "C17"`)
 - Windows Win32 API; use `ComPtr<T>` from `<wrl/client.h>` for COM objects
+- Prefer `#pragma once` for include guards
 
 ### Naming Conventions
 
@@ -135,6 +149,12 @@ project "SampleName"
 | Constants            | UPPER_SNAKE  | `FrameCount`, `WindowWidth`, `k_WindowClassName` |
 | Files                | PascalCase   | `Main.cpp`, `Window.h`           |
 | Member variables     | `m_` prefix  | `m_width`, `m_hWnd`, `m_dpiScale` |
+
+### Formatting
+
+- Allman brace style (opening brace on its own line)
+- 4-space indentation
+- Blank line between logical sections
 
 ### Include Order
 
@@ -154,9 +174,11 @@ Win32 → D3D12/DXGI → d3dx12 → WRL → STL
 Every D3D12 sample must export GPU vendor flags and Agility SDK version:
 
 ```cpp
-extern "C" {
+extern "C"
+{
     __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
     __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
 #ifdef USING_D3D12_AGILITY_SDK
     __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION;
     __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
@@ -166,20 +188,20 @@ extern "C" {
 
 ### Error Handling
 
-- Return `false` from init functions on failure
+- Return `false` from init functions on failure; callers must check returns
 - Check all COM `HRESULT` returns with `FAILED()` macro
 - Enable D3D12 debug layer in Debug/Development configs
+- Use `nullptr` (not `NULL` or `0`) for pointer initialization
 
-## Lint & Typecheck
+### Resource Management
 
-No automated tools. Verify by building in Development config:
-```batch
-msbuild D3D12\Samples\HelloTriangle\HelloTriangle.vcxproj /p:Configuration=Development /p:Platform=x64
-```
-Target MSVC; address warnings, don't suppress.
+- COM objects: `Microsoft::WRL::ComPtr<T>`, call `.ReleaseAndGetAddressOf()` for out-params
+- Non-copyable types: `= delete` copy constructor and assignment operator
+- Prefer `static constexpr` over `#define` for constants
 
 ## Do NOT Modify
 
 - `ThirdParty/*` — Git submodules (read-only)
 - `External/AgilitySDK/*` — Vendored SDK
-- Generated files (`*.vcxproj`, `*.filters`) — regenerated by premake5
+- `External/WinPixEventRuntime/*` — Vendored SDK
+- Generated files (`*.vcxproj`, `*.filters`, `*.slnx`) — regenerated by premake5

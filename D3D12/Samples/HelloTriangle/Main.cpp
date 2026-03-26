@@ -1,5 +1,5 @@
 #include <d3dx12/d3dx12.h>
-#include "Shared/Window.h"
+#include "Common/Window.h"
 
 extern "C"
 {

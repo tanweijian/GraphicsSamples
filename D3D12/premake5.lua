@@ -12,6 +12,7 @@ function AgilitySDK()
     includedirs (_MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Include")
     includedirs (_MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Include/d3dx12")
     files { _MAIN_SCRIPT_DIR .. "/External/AgilitySDK/Source/**.cpp" }
+    postbuildcommands { 'chcp 65001' } -- 防止output windows乱码
     RuntimeDependency("External/AgilitySDK/Binaries/D3D12Core.dll", "D3D12")
     filter "configurations:Debug"
         RuntimeDependency("External/AgilitySDK/Binaries/D3D12Core.pdb", "D3D12")
@@ -21,6 +22,20 @@ function AgilitySDK()
         RuntimeDependency("External/AgilitySDK/Binaries/d3d12SDKLayers.dll", "D3D12")
     filter {}
     defines { "USING_D3D12_AGILITY_SDK" }
+end
+
+function WinPixEventRuntime()
+    includedirs (_MAIN_SCRIPT_DIR .. "/External/WinPixEventRuntime/Include")
+    libdirs { _MAIN_SCRIPT_DIR .. "/External/WinPixEventRuntime/Binaries" }
+    links { "WinPixEventRuntime" }
+
+    filter "configurations:Debug"
+        RuntimeDependency("External/WinPixEventRuntime/Binaries/WinPixEventRuntime.dll", "")
+        defines { "USE_PIX" }
+    filter "configurations:Development"
+        RuntimeDependency("External/WinPixEventRuntime/Binaries/WinPixEventRuntime.dll", "")
+        defines { "USE_PIX" }
+    filter {}
 end
 
 function Imgui()

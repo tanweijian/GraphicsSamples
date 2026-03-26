@@ -9,6 +9,8 @@ project "HelloTriangle"
 
     files { "**.h", "**.hpp", "**.inl", "**.cpp", "**.cc" }
 
+    VulkanSDK()
+
     vpaths
     {
         ["External/*"] = { _MAIN_SCRIPT_DIR .. "/External/**.*" },
