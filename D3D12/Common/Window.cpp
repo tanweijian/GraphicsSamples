@@ -1,8 +1,5 @@
 #include "Window.h"
-
-#include <dwmapi.h>
-
-#pragma comment(lib, "dwmapi.lib")
+#include "Application.h"
 
 static constexpr wchar_t k_WindowClassName[] = L"GraphicsSampleWindow";
 static int g_windowRefCount = 0;
@@ -12,8 +9,10 @@ Window::~Window()
     Destroy();
 }
 
-bool Window::Create(const Desc& desc, HINSTANCE hInstance)
+bool Window::Create(const Desc& desc, HINSTANCE hInstance, Application* app)
 {
+    m_app = app;
+
     if (g_windowRefCount == 0)
     {
         SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
@@ -120,9 +119,16 @@ LRESULT Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_SIZE:
+    {
         m_width = LOWORD(lParam);
         m_height = HIWORD(lParam);
+        WindowEventData data;
+        data.Event = WindowEvent::Resize;
+        data.Width = m_width;
+        data.Height = m_height;
+        DispatchEvent(WindowEvent::Resize, data);
         return 0;
+    }
 
     case WM_DPICHANGED:
     {
@@ -135,13 +141,21 @@ LRESULT Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             suggestedRect->right - suggestedRect->left,
             suggestedRect->bottom - suggestedRect->top,
             SWP_NOZORDER | SWP_NOACTIVATE);
+
+        WindowEventData data;
+        data.Event = WindowEvent::DpiChanged;
+        data.DpiScale = m_dpiScale;
+        DispatchEvent(WindowEvent::DpiChanged, data);
         return 0;
     }
 
-    case WM_DESTROY:
+    case WM_CLOSE:
+    {
+        DispatchEvent(WindowEvent::Close, {});
         m_isRunning = false;
         PostQuitMessage(0);
         return 0;
+    }
     }
 
     return DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -153,4 +167,12 @@ void Window::UpdateDpiScale()
     if (dpi == 0)
         dpi = 96;
     m_dpiScale = static_cast<float>(dpi) / 96.0f;
+}
+
+void Window::DispatchEvent(WindowEvent event, const WindowEventData& data)
+{
+    if (m_app)
+    {
+        m_app->OnWindowEvent(event, data);
+    }
 }

@@ -1,5 +1,4 @@
-#include <d3dx12/d3dx12.h>
-#include "Common/Window.h"
+#include "HelloTriangle.h"
 
 extern "C"
 {
@@ -12,16 +11,11 @@ extern "C"
 #endif
 }
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ PWSTR lpCmdLine, _In_ int nShowCmd)
 {
-    Window window;
-    if (!window.Create({ L"Hello Triangle", 1280, 720 }, hInstance))
+    HelloTriangle app;
+    if (!app.Initialize({ L"Hello Triangle", 1280, 720 }, hInstance))
         return 1;
 
-    while (window.PollMessage())
-    {
-        // TODO: render frame
-    }
-
-    return 0;
+    return app.Run();
 }

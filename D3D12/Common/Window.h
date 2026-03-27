@@ -3,6 +3,24 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 
+class Application;
+
+enum class WindowEvent
+{
+    None = 0,
+    Resize,
+    DpiChanged,
+    Close
+};
+
+struct WindowEventData
+{
+    WindowEvent Event = WindowEvent::None;
+    int Width = 0;
+    int Height = 0;
+    float DpiScale = 1.0f;
+};
+
 class Window
 {
 public:
@@ -20,7 +38,7 @@ public:
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
-    bool Create(const Desc& desc, HINSTANCE hInstance);
+    bool Create(const Desc& desc, HINSTANCE hInstance, Application* app);
     void Destroy();
 
     bool PollMessage();
@@ -34,10 +52,12 @@ private:
     static LRESULT CALLBACK StaticWndProc(HWND, UINT, WPARAM, LPARAM);
     LRESULT WndProc(HWND, UINT, WPARAM, LPARAM);
     void UpdateDpiScale();
+    void DispatchEvent(WindowEvent event, const WindowEventData& data);
 
     HWND m_hWnd = nullptr;
     int m_width = 1280;
     int m_height = 720;
     float m_dpiScale = 1.0f;
     bool m_isRunning = false;
+    Application* m_app = nullptr;
 };
