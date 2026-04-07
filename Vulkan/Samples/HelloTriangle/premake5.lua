@@ -9,6 +9,7 @@ project "HelloTriangle"
 
     files { "**.h", "**.hpp", "**.inl", "**.cpp", "**.cc" }
 
+    Imgui()
     VulkanSDK()
 
     vpaths

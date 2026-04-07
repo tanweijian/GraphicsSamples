@@ -2,8 +2,12 @@
 
 #include "Window.h"
 
+class Window;
+
 class Application
 {
+    friend class Window;
+
 public:
     struct Desc
     {

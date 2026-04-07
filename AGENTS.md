@@ -1,93 +1,142 @@
 # AGENTS.md
 
-## Project Overview
+## 项目概述
 
-C++ graphics samples for D3D12 and Vulkan on Windows x64. Uses Premake5 to generate VS2026 solutions.
-
-## Repository Structure
+C++ 图形渲染示例，支持 D3D12 和 Vulkan，Windows x64 平台。使用 Premake5 生成 VS2026 解决方案。
 
 ```
 GraphicsSamples/
-  premake5.lua              # Root workspace definition (2 workspaces: D3D12, Vulkan)
-  GenerateProjectFiles.bat  # Runs premake5 vs2026
-  D3D12/                    # D3D12 samples + Common utilities
-  Vulkan/                   # Vulkan samples (stubbed, WIP)
-  External/                 # SDKs (AgilitySDK, WinPixEventRuntime, VulkanSDK)
-  ThirdParty/               # Git submodules (spdlog, imgui)
+  premake5.lua              # 根工作区定义
+  GenerateProjectFiles.bat  # 运行 premake5 vs2026
+  D3D12/                    # D3D12 示例 + 公共工具
+  Vulkan/                   # Vulkan 示例（开发中）
+  External/                 # SDK（AgilitySDK, WinPixEventRuntime, VulkanSDK）
+  ThirdParty/               # Git 子模块（spdlog, imgui）
 ```
 
-Each sample: `{API}/Samples/{SampleName}/Main.cpp` + `premake5.lua`.
+每个示例：`{API}/Samples/{SampleName}/Main.cpp` + `premake5.lua`
 
-## Build System
-
-### Generate & Build
+## 构建命令
 
 ```batch
-GenerateProjectFiles.bat   # Regenerate .vcxproj files alongside source
+GenerateProjectFiles.bat   # 重新生成 .vcxproj 文件
 
-:: Single project (requires /p:Platform=x64)
+:: 编译单个示例（需要 /p:Platform=x64）
 msbuild D3D12\Samples\HelloTriangle\HelloTriangle.vcxproj /p:Configuration=Development /p:Platform=x64
 
-:: Full solution
+:: 编译完整解决方案
 msbuild GraphicsSamplesD3D12.slnx /p:Configuration=Development /p:Platform=x64
 ```
 
-### Configurations
+| 配置        | 调试层   | 优化 | 符号 |
+|-------------|----------|------|------|
+| Debug       | 启用     | 关闭 | 开启 |
+| Development | 启用     | 开启 | 开启 |
+| Release     | 关闭     | 开启 | 开启 |
 
-| Config      | Runtime | Optimize | Symbols | Notes                     |
-|-------------|---------|----------|---------|---------------------------|
-| Debug       | Debug   | Off      | On      | Full debug, SDK debug layer |
-| Development | Release | On       | On      | Optimized, SDK debug layer |
-| Release     | Release | On       | On      | Final builds, no debug layer |
+输出目录：`.vcxproj` 同级的 `bin/{Config}/`，AgilitySDK DLL 复制到 `bin/{Config}/D3D12/`
 
-### Running Samples
+## 测试与验证
 
-Samples are `WindowedApp`. Output to `bin/{Config}/` adjacent to `.vcxproj`. AgilitySDK DLLs copied to `bin/{Config}/D3D12/` via post-build.
+无单元测试。验证方式：
+1. 使用 Development 配置编译
+2. 运行并检查渲染输出
+3. D3D12 调试层（Debug/Development）检测 API 误用
 
-## Testing
+## Lint 与类型检查
 
-No unit tests. Verify by:
-1. Build in Development config
-2. Run visually — check rendering output
-3. Enable D3D12 debug layer (Debug/Development) to catch API misuse
+无自动化工具。使用 Development 配置编译，处理所有 MSVC 警告，不要抑制。
 
-## Lint & Typecheck
+## 代码风格
 
-No automated tools. Verify by building in Development config:
-```batch
-msbuild D3D12\Samples\HelloTriangle\HelloTriangle.vcxproj /p:Configuration=Development /p:Platform=x64
-```
-Target MSVC; address warnings, don't suppress.
+### 语言与标准
 
-## Common Utilities
+- C++20，C 文件使用 C17
+- Windows Win32 API，COM 对象使用 `<wrl/client.h>` 的 `ComPtr<T>`
+- 使用 `#pragma once` 作为头文件保护
 
-`D3D12/Common/Window.h` / `Window.cpp` — Win32 window wrapper:
-- Per-monitor DPI aware v2
-- External message loop via `PollMessage()` (returns `false` on `WM_QUIT`)
-- `Desc` struct for configuration (title, size, resizable)
+### 命名约定
+
+| 元素         | 风格        | 示例                          |
+|--------------|-------------|-------------------------------|
+| 类/结构体    | PascalCase  | `Vertex`, `Window`, `HelloTriangle` |
+| 函数         | PascalCase  | `InitWindow`, `Render`, `PollMessage` |
+| 全局/静态变量 | `g_` 前缀   | `g_device`, `g_windowRefCount` |
+| 常量         | UPPER_SNAKE | `FrameCount`, `k_WindowClassName` |
+| 成员变量     | `m_` 前缀   | `m_width`, `m_hWnd`, `m_dpiScale` |
+| 文件         | PascalCase  | `Main.cpp`, `Window.h` |
+
+### 格式化
+
+- Allman 大括号风格（左大括号独占一行）
+- 4 空格缩进
+- 逻辑块之间空行分隔
+
+### 头文件包含顺序
+
+Win32 → D3D12/DXGI → d3dx12 → WRL → STL
 
 ```cpp
-#include <Window.h>
-Window window;
-if (!window.Create({ L"Sample", 1280, 720 }, hInstance)) return 1;
-while (window.PollMessage()) { /* render */ }
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <d3dx12/d3dx12.h>
+#include <wrl/client.h>
 ```
 
-Include in sample's `premake5.lua`:
-```lua
-includedirs (_MAIN_SCRIPT_DIR .. "/D3D12")
-files { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.cpp" }
+### 错误处理
+
+- 初始化函数失败返回 `false`，调用者必须检查返回值
+- 使用 `FAILED()` 宏检查 COM `HRESULT` 返回值
+- 使用 `nullptr`（而非 `NULL` 或 `0`）初始化指针
+- Debug/Development 配置启用 D3D12 调试层
+
+### 资源管理
+
+- COM 对象：`Microsoft::WRL::ComPtr<T>`，输出参数使用 `.ReleaseAndGetAddressOf()`
+- 不可复制类型：`= delete` 拷贝构造和赋值运算符
+- 常量优先使用 `static constexpr` 而非 `#define`
+
+## D3D12 示例样板
+
+每个 D3D12 示例必须在 Main.cpp 导出 GPU 厂商标志和 Agility SDK 版本：
+
+```cpp
+extern "C"
+{
+    __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+
+#ifdef USING_D3D12_AGILITY_SDK
+    __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION;
+    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
+#endif
+}
+
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE, _In_ PWSTR, _In_ int)
+{
+    HelloTriangle app;
+    if (!app.Initialize({ L"Hello Triangle", 1280, 720 }, hInstance))
+        return 1;
+    return app.Run();
+}
 ```
 
-## Adding New Samples
+## 公共工具
 
-1. Create `{API}/Samples/{SampleName}/`
-2. Add `Main.cpp` with `wWinMain` entry + GPU vendor exports (D3D12 only)
-3. Add `premake5.lua` (copy existing, adjust `targetname`)
-4. Call helper functions: `AgilitySDK()`, `Imgui()`, include Common files
-5. Run `GenerateProjectFiles.bat`
+- `D3D12/Common/Window.h` — Win32 窗口封装，支持 DPI 感知 v2，`PollMessage()` 返回 `false` 表示 `WM_QUIT`
+- `D3D12/Common/Application.h` — 基类，提供虚函数：`OnInit()`, `OnShutdown()`, `OnRender()`, `OnResize()`, `OnDpiChanged()`, `OnWindowEvent()`
 
-### premake5.lua Template (D3D12)
+## 添加新示例
+
+1. 创建 `{API}/Samples/{SampleName}/`
+2. 添加 `Main.cpp`，包含 `wWinMain` 入口和 GPU 厂商导出（仅 D3D12）
+3. 添加 `premake5.lua`（复制现有示例，修改 `targetname`）
+4. 调用辅助函数：`AgilitySDK()`, `Imgui()`, `WinPixEventRuntime()`
+5. 运行 `GenerateProjectFiles.bat`
+
+### premake5.lua 模板（D3D12）
 
 ```lua
 project "SampleName"
@@ -102,7 +151,8 @@ project "SampleName"
     files { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.h", _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.cpp" }
     Imgui()
     AgilitySDK()
-    links { "d3d12", "dxgi", "dxguid" }
+    WinPixEventRuntime()
+    links { "d3d12", "dxgi", "dxguid", "dwmapi" }
     vpaths {
         ["Common/*"] = { _MAIN_SCRIPT_DIR .. "/D3D12/Common/**.*" },
         ["External/*"] = { _MAIN_SCRIPT_DIR .. "/External/**.*" },
@@ -116,92 +166,29 @@ project "SampleName"
         runtime "Release" optimize "On" symbols "On"
 ```
 
-## Helper Functions (D3D12/premake5.lua)
+## 辅助函数
 
-- `AgilitySDK()` — includes AgilitySDK headers/source, copies DLLs post-build, defines `USING_D3D12_AGILITY_SDK`
-- `Imgui()` — includes imgui + DX12/Win32 backends
-- `WinPixEventRuntime()` — includes PIX headers/libs, copies DLL post-build, defines `USE_PIX` (Debug/Development only)
-- `RuntimeDependency(src, dest)` — copies file to `$(OutDir)/dest` post-build
+| 函数                   | 说明                                              |
+|------------------------|---------------------------------------------------|
+| `AgilitySDK()`         | 引入 AgilitySDK，复制 DLL，定义 `USING_D3D12_AGILITY_SDK` |
+| `Imgui()`              | 引入 imgui + DX12/Win32 或 Vulkan/Win32 backend  |
+| `WinPixEventRuntime()` | 引入 PIX，复制 DLL（仅 Debug/Development），定义 `USE_PIX` |
+| `RuntimeDependency()`  | 复制运行时依赖到输出目录                          |
 
-## Dependencies
+## 依赖
 
-- `git submodule init && git submodule update`
-- **ThirdParty/spdlog**: Logging
-- **ThirdParty/imgui**: Immediate-mode GUI
-- **External/AgilitySDK**: D3D12 headers + binaries
-- **External/WinPixEventRuntime**: GPU profiling (Debug/Development)
-
-## Code Style
-
-### Language & Standard
-
-- C++20 (`cppdialect "C++20"`), C17 for C files (`cdialect "C17"`)
-- Windows Win32 API; use `ComPtr<T>` from `<wrl/client.h>` for COM objects
-- Prefer `#pragma once` for include guards
-
-### Naming Conventions
-
-| Element              | Style        | Example                          |
-|----------------------|--------------|----------------------------------|
-| Classes/Structs      | PascalCase   | `Vertex`, `Window`, `HelloTriangle` |
-| Functions            | PascalCase   | `InitWindow`, `Render`, `PollMessage` |
-| Globals/statics      | `g_` prefix  | `g_device`, `g_windowRefCount`   |
-| Constants            | UPPER_SNAKE  | `FrameCount`, `WindowWidth`, `k_WindowClassName` |
-| Files                | PascalCase   | `Main.cpp`, `Window.h`           |
-| Member variables     | `m_` prefix  | `m_width`, `m_hWnd`, `m_dpiScale` |
-
-### Formatting
-
-- Allman brace style (opening brace on its own line)
-- 4-space indentation
-- Blank line between logical sections
-
-### Include Order
-
-Win32 → D3D12/DXGI → d3dx12 → WRL → STL
-
-```cpp
-#define WIN32_LEAN_AND_MEAN
-#include <Windows.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-#include <d3dx12/d3dx12.h>
-#include <wrl/client.h>
+```batch
+git submodule init && git submodule update
 ```
 
-### D3D12 Entry Boilerplate
+- **ThirdParty/spdlog**: 日志库
+- **ThirdParty/imgui**: 即时模式 GUI
+- **External/AgilitySDK**: D3D12 头文件 + 二进制
+- **External/WinPixEventRuntime**: GPU 性能分析（Debug/Development）
+- **External/VulkanSDK**: Vulkan 头文件 + 二进制
 
-Every D3D12 sample must export GPU vendor flags and Agility SDK version:
+## 禁止修改
 
-```cpp
-extern "C"
-{
-    __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
-    __declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
-
-#ifdef USING_D3D12_AGILITY_SDK
-    __declspec(dllexport) extern const UINT D3D12SDKVersion = D3D12_SDK_VERSION;
-    __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
-#endif
-}
-```
-
-### Error Handling
-
-- Return `false` from init functions on failure; callers must check returns
-- Check all COM `HRESULT` returns with `FAILED()` macro
-- Enable D3D12 debug layer in Debug/Development configs
-- Use `nullptr` (not `NULL` or `0`) for pointer initialization
-
-### Resource Management
-
-- COM objects: `Microsoft::WRL::ComPtr<T>`, call `.ReleaseAndGetAddressOf()` for out-params
-- Non-copyable types: `= delete` copy constructor and assignment operator
-- Prefer `static constexpr` over `#define` for constants
-
-## Do NOT Modify
-
-- `ThirdParty/*` — Git submodules (read-only)
-- `External/AgilitySDK/*` — Vendored SDK
-- `External/WinPixEventRuntime/*` — Vendored SDK
-- Generated files (`*.vcxproj`, `*.filters`, `*.slnx`) — regenerated by premake5
+- `ThirdParty/*` — Git 子模块（只读）
+- `External/*` — 第三方 SDK
+- 生成的文件（`*.vcxproj`, `*.filters`, `*.slnx`）— 由 premake5 重新生成
