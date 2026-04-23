@@ -1,6 +1,8 @@
 #include "Window.h"
 #include "Application.h"
 
+extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 static constexpr wchar_t k_WindowClassName[] = L"GraphicsSampleWindow";
 static int g_windowRefCount = 0;
 
@@ -116,6 +118,9 @@ LRESULT CALLBACK Window::StaticWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
 
 LRESULT Window::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+        return true;
+
     switch (msg)
     {
     case WM_SIZE:

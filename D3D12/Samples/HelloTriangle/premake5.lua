@@ -16,7 +16,7 @@ project "HelloTriangle"
     AgilitySDK()
     WinPixEventRuntime()
 
-    links { "d3d12", "dxgi", "dxguid", "dwmapi" }
+    links { "d3d12", "dxgi", "dxguid", "dwmapi", "d3dcompiler" }
 
     vpaths
     {
