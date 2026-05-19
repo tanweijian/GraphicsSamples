@@ -564,6 +564,9 @@ bool HelloTriangle::CreateImgui()
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
 
+    ImGuiIO& io = ImGui::GetIO();
+    io.IniFilename = nullptr;
+
     D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
     srvHeapDesc.NumDescriptors = 1;
     srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
@@ -653,6 +656,7 @@ void HelloTriangle::UpdateSceneConstants()
 
 void HelloTriangle::BuildImgui()
 {
+    ImGui::SetNextWindowSize(ImVec2(320, 200), ImGuiCond_FirstUseEver);
     ImGui::Begin("HelloTriangle");
     ImGui::Text("Resolution: %d x %d", GetWidth(), GetHeight());
     ImGui::Checkbox("Animate", &m_animate);
